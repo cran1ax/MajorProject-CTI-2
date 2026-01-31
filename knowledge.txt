@@ -1,0 +1,5 @@
+Phishing attacks are fraudulent attempts to steal sensitive data using deceptive URLs.
+Malicious URLs often contain abnormal domain lengths, special characters, or IP-based domains.
+Machine learning models classify cyber threats using lexical, host-based, and behavioral features.
+High-risk cybersecurity incidents are identified using ensemble classifiers and neural networks.
+Retrieval-Augmented Generation improves answer accuracy by combining document retrieval with LLMs.
