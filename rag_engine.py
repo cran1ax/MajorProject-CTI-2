@@ -1,4 +1,4 @@
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -12,8 +12,7 @@ embeddings = HuggingFaceEmbeddings(
 # Load lightweight local LLM
 llm = pipeline(
     "text-generation",
-    model="distilgpt2",
-    max_new_tokens=120
+    model="distilgpt2"
 )
 
 def build_vector_store(text: str):
@@ -30,16 +29,15 @@ def ask_rag(vector_db, question: str) -> str:
     docs = vector_db.similarity_search(question, k=3)
     context = "\n".join([doc.page_content for doc in docs])
 
-    prompt = f"""
-Use the context below to answer the question clearly.
+    prompt = f"Context: {context}\nQuestion: {question}\nAnswer:"
 
-Context:
-{context}
+    result = llm(prompt, truncation=True, max_new_tokens=50, num_return_sequences=1, clean_up_tokenization_spaces=True)
+    full_text = result[0]["generated_text"]
 
-Question:
-{question}
+    # Extract only the answer part
+    if "Answer:" in full_text:
+        answer = full_text.split("Answer:")[-1].strip()
+    else:
+        answer = full_text[len(prompt):].strip()
 
-Answer:
-"""
-    result = llm(prompt)
-    return result[0]["generated_text"]
+    return answer
