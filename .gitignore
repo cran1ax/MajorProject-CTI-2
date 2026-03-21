@@ -1,0 +1,11 @@
+models/qwen2.5-3b-instruct-q5_k_m.gguf
+chroma_db
+qwen2.5-3b-instruct-q5_k_m.gguf
+venv
+__pycache__
+.env
+.venv
+.vscode
+.env.example
+*.pkl
+*.h5
