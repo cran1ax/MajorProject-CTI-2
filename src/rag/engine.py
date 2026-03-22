@@ -373,6 +373,124 @@ def generate_threat_explanation(
 
 
 # ---------------------------------------------------------------------------
+# 5.  Retrieval-only Q&A (no LLM required — fast, instant responses)
+# ---------------------------------------------------------------------------
+
+_SECTION_HEADERS = {
+    "phishing": "🎣 Phishing",
+    "ransomware": "🔒 Ransomware",
+    "ddos": "💧 DDoS",
+    "malware": "🦠 Malware",
+    "insider": "🕵️ Insider Threat",
+    "sql": "🗃️ SQL Injection",
+    "xss": "🌐 XSS",
+    "mitm": "🔄 Man-in-the-Middle",
+    "zero-day": "0️⃣ Zero-Day",
+    "cve": "📋 CVE / Vulnerability",
+    "mitre": "🗺️ MITRE ATT&CK",
+    "nist": "📜 NIST IR Framework",
+    "apt": "🎯 APT",
+    "exfiltration": "📤 Data Exfiltration",
+    "cloud": "☁️ Cloud Security",
+    "ml": "🤖 ML in Cybersecurity",
+    "encrypt": "🔐 Encryption",
+    "social": "🧠 Social Engineering",
+    "endpoint": "💻 Endpoint Security",
+    "threat intel": "🌐 Threat Intelligence",
+    "network": "📡 Network Security",
+    "financial": "🏦 Financial Sector",
+    "health": "🏥 Healthcare",
+    "critical infra": "⚡ Critical Infrastructure",
+}
+
+
+def answer_question(
+    question: str,
+    collection: Optional[chromadb.Collection] = None,
+    n_results: int = 4,
+) -> str:
+    """
+    Answer a cybersecurity question using **retrieval only** — no LLM needed.
+
+    Retrieves the top *n_results* most relevant passages from the ChromaDB
+    knowledge base and returns them formatted as a readable answer.
+
+    Parameters
+    ----------
+    question : str
+        A cybersecurity question posed by the user.
+    collection : chromadb.Collection, optional
+        ChromaDB collection to query.  Uses the default KB collection if None.
+    n_results : int
+        Number of knowledge chunks to return (default 4).
+
+    Returns
+    -------
+    str
+        Formatted answer drawn from retrieved passages.
+    """
+    if collection is None:
+        collection = get_or_create_collection()
+
+    model = _get_embedding_model()
+    query_embedding = model.encode([question], show_progress_bar=False).tolist()
+
+    results = collection.query(
+        query_embeddings=query_embedding,
+        n_results=min(n_results, 10),
+        include=["documents", "metadatas", "distances"],
+    )
+
+    documents = results.get("documents", [[]])[0]
+    distances = results.get("distances", [[]])[0]
+
+    if not documents:
+        return (
+            "⚠️ No relevant information found in the knowledge base for your query.\n\n"
+            "Try rephrasing your question or asking about specific threat types such as "
+            "phishing, ransomware, malware, DDoS, SQL injection, APT, or MITRE ATT&CK."
+        )
+
+    # Filter by relevance (cosine distance < 0.8 means reasonably similar)
+    relevant = [
+        (doc, dist)
+        for doc, dist in zip(documents, distances)
+        if dist < 0.85
+    ]
+
+    if not relevant:
+        # Fall back to best match even if distance is high
+        relevant = [(documents[0], distances[0])]
+
+    # Build the response header
+    q_lower = question.lower()
+    topic_label = "Cybersecurity"
+    for keyword, label in _SECTION_HEADERS.items():
+        if keyword in q_lower:
+            topic_label = label
+            break
+
+    lines = [f"**{topic_label} — Retrieved Knowledge Base Excerpts**\n"]
+    lines.append(
+        f"_Found {len(relevant)} relevant passage(s) for:_ **{question}**\n"
+    )
+    lines.append("---\n")
+
+    for i, (doc, dist) in enumerate(relevant, 1):
+        relevance_pct = max(0, min(100, int((1 - dist) * 100)))
+        lines.append(f"**📖 Passage {i}** _(relevance: {relevance_pct}%)_\n")
+        lines.append(doc.strip())
+        lines.append("\n---\n")
+
+    lines.append(
+        "\n_💡 Tip: This answer is retrieved directly from the cybersecurity knowledge base. "
+        "Activate the LLM (if configured) for synthesised, conversational answers._"
+    )
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
 # CLI quick-test (python -m src.rag.engine)
 # ---------------------------------------------------------------------------
 

@@ -33,14 +33,17 @@ from src.rag.engine import (
     ingest_knowledge_file,
     init_llm,
     generate_threat_explanation,
+    answer_question,
     LLMLoadError,
     DEFAULT_KNOWLEDGE_PATH,
 )
+from src.ml.predictor import predict_risk          # RF-based predictor
+from src.dl.predictor import DeepRiskPredictor      # DL-based predictor
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
-MODELS_DIR = _PROJECT_ROOT / "models"
+MODELS_DIR = _PROJECT_ROOT / "models"   # pkl files live here
 
 ATTACK_TYPES = ["DDoS", "Insider Threat", "Malware", "Phishing", "Ransomware"]
 INDUSTRIES = ["Education", "Finance", "Government", "Healthcare", "Technology"]
@@ -65,29 +68,46 @@ FEATURE_COLUMNS = [
 def load_ml_models():
     """
     Load the pre-trained Random Forest, StandardScaler, and LabelEncoders
-    from .pkl files in the project root.
+    from .pkl files stored in the ``models/`` directory.
 
     Returns a dict with keys: rf_model, scaler, le_attack, le_industry, le_country
     """
-    root = _PROJECT_ROOT
-
     required = {
-        "rf_model": root / "rf_model.pkl",
-        "scaler": root / "scaler.pkl",
-        "le_attack": root / "le_attack.pkl",
-        "le_industry": root / "le_industry.pkl",
-        "le_country": root / "le_country.pkl",
+        "rf_model":    MODELS_DIR / "rf_model.pkl",
+        "scaler":      MODELS_DIR / "scaler.pkl",
+        "le_attack":   MODELS_DIR / "le_attack.pkl",
+        "le_industry": MODELS_DIR / "le_industry.pkl",
+        "le_country":  MODELS_DIR / "le_country.pkl",
     }
 
     missing = [name for name, path in required.items() if not path.is_file()]
     if missing:
         st.error(
-            f"**Missing model files:** {', '.join(missing)}\n\n"
-            f"Run `model_training.py` (or `src/ml/train.py`) first to generate them."
+            f"**Missing model files in `models/`:** {', '.join(missing)}\n\n"
+            f"Run `python src/ml/train.py` first to generate them."
         )
         st.stop()
 
     return {name: joblib.load(str(path)) for name, path in required.items()}
+
+
+@st.cache_resource(show_spinner="Loading deep-learning model …")
+def load_dl_model():
+    """
+    Attempt to load the PyTorch MLP from models/dl_model.pt.
+
+    Returns ``(predictor, error_msg)``:
+    - If loaded OK  → ``(DeepRiskPredictor_instance, None)``
+    - If missing    → ``(None, description_str)``
+    """
+    try:
+        predictor = DeepRiskPredictor(models_dir=MODELS_DIR)
+        predictor.load()
+        return predictor, None
+    except FileNotFoundError as exc:
+        return None, str(exc)
+    except Exception as exc:  # noqa: BLE001
+        return None, f"Unexpected error loading DL model: {exc}"
 
 
 @st.cache_resource(show_spinner="Initialising RAG engine …")
@@ -120,28 +140,10 @@ def load_rag_engine():
 
 
 # ═══════════════════════════════════════════════════════════════════════════
-# 2.  ML prediction helper
+# 2.  ML prediction helper  (implementation lives in src/ml/predictor.py)
 # ═══════════════════════════════════════════════════════════════════════════
 
-def predict_risk(models: dict, features: dict) -> float:
-    """
-    Encode + scale the user-provided features and return the predicted
-    probability of high risk (0.0 – 1.0).
-    """
-    input_df = pd.DataFrame(
-        [[
-            features["financial_loss"],
-            features["affected_users"],
-            features["response_time"],
-            features["vulnerability_score"],
-            models["le_attack"].transform([features["attack_type"]])[0],
-            models["le_industry"].transform([features["industry"]])[0],
-            models["le_country"].transform([features["country"]])[0],
-        ]],
-        columns=FEATURE_COLUMNS,
-    )
-    scaled = models["scaler"].transform(input_df)
-    return float(models["rf_model"].predict_proba(scaled)[0][1])
+# predict_risk() is imported from src.ml.predictor above — no local definition needed.
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -163,6 +165,7 @@ def main():
 
     # --- Load resources (cached after first run) ---
     models = load_ml_models()
+    dl_model, dl_error = load_dl_model()
     collection, llm_available, llm_error = load_rag_engine()
 
     # --- LLM status banner ---
@@ -171,6 +174,15 @@ def main():
             "**Local LLM not loaded** — RAG explanations are unavailable.  \n"
             f"Reason: `{llm_error}`",
             icon="⚠️",
+        )
+
+    # --- DL model status (non-blocking) ---
+    if dl_error:
+        st.info(
+            f"**Deep-learning model not loaded** — only Random Forest predictions shown.  \n"
+            f"Run `python -m src.dl.train` to generate `models/dl_model.pt`.  \n"
+            f"Reason: `{dl_error}`",
+            icon="ℹ️",
         )
 
     # ────────────────────────────────────────────────────────────
@@ -234,22 +246,61 @@ def main():
                 "country": country,
             }
 
-            # ---- ML prediction ----
-            prob = predict_risk(models, features)
+            # ---- RF prediction ----
+            prob_rf = predict_risk(models, features)
+
+            # ---- DL prediction (if model is loaded) ----
+            prob_dl = None
+            if dl_model is not None:
+                # Build the encoded feature dict expected by DeepRiskPredictor
+                dl_features = {
+                    "financial_loss":     features["financial_loss"],
+                    "affected_users":     features["affected_users"],
+                    "response_time":      features["response_time"],
+                    "vulnerability_score": features["vulnerability_score"],
+                    "attack_enc":   models["le_attack"].transform([features["attack_type"]])[0],
+                    "industry_enc": models["le_industry"].transform([features["industry"]])[0],
+                    "country_enc":  models["le_country"].transform([features["country"]])[0],
+                }
+                try:
+                    prob_dl = dl_model.predict(dl_features)
+                except Exception as exc:  # noqa: BLE001
+                    st.warning(f"DL prediction failed: {exc}")
+
+            # Use RF probability as the canonical score for RAG
+            prob = prob_rf
 
             st.divider()
-            metric_col, badge_col = st.columns([1, 2])
+            st.subheader("📊 Model Predictions")
 
-            with metric_col:
-                st.metric("High Risk Probability", f"{prob:.0%}")
-
-            with badge_col:
-                if prob < 0.3:
-                    st.success("🟢 **Low Risk** — Routine monitoring recommended.")
-                elif prob < 0.6:
-                    st.warning("🟡 **Medium Risk** — Elevated alerting advised.")
-                else:
-                    st.error("🔴 **High Risk** — Immediate response recommended.")
+            if prob_dl is not None:
+                # Side-by-side comparison
+                col_rf, col_dl, col_badge = st.columns([1, 1, 2])
+                with col_rf:
+                    st.metric("🌳 Random Forest", f"{prob_rf:.0%}")
+                with col_dl:
+                    st.metric("🧠 Deep Learning", f"{prob_dl:.0%}")
+                avg_prob = (prob_rf + prob_dl) / 2
+                with col_badge:
+                    st.caption(f"Ensemble average: **{avg_prob:.0%}**")
+                    if avg_prob < 0.3:
+                        st.success("🟢 **Low Risk** — Routine monitoring recommended.")
+                    elif avg_prob < 0.6:
+                        st.warning("🟡 **Medium Risk** — Elevated alerting advised.")
+                    else:
+                        st.error("🔴 **High Risk** — Immediate response recommended.")
+            else:
+                # Only RF available
+                metric_col, badge_col = st.columns([1, 2])
+                with metric_col:
+                    st.metric("🌳 Random Forest Probability", f"{prob_rf:.0%}")
+                with badge_col:
+                    if prob_rf < 0.3:
+                        st.success("🟢 **Low Risk** — Routine monitoring recommended.")
+                    elif prob_rf < 0.6:
+                        st.warning("🟡 **Medium Risk** — Elevated alerting advised.")
+                    else:
+                        st.error("🔴 **High Risk** — Immediate response recommended.")
 
             # ---- RAG explanation ----
             if llm_available:
@@ -304,31 +355,52 @@ def main():
     # ==================== TAB 3: Knowledge Assistant ====================
     with tab_qa:
         st.header("🤖 Cybersecurity Knowledge Assistant")
+        st.caption(
+            "Ask any cybersecurity question. Answers are retrieved instantly from the "
+            "knowledge base — **no LLM required**. " +
+            ("🟢 LLM also available for richer explanations in the Prediction tab."
+             if llm_available else
+             "_Activate an LLM for full RAG explanations in the Prediction tab._")
+        )
 
-        if not llm_available:
-            st.info("The Knowledge Assistant requires a local LLM. See the warning above.")
-        else:
+        # Suggested questions for quick exploration
+        QUICK_QUESTIONS = [
+            "What is ransomware and how does it spread?",
+            "How does phishing work?",
+            "What is MITRE ATT&CK?",
+            "Explain DDoS attacks.",
+            "What is an APT (Advanced Persistent Threat)?",
+            "How does SQL injection work?",
+            "What is the NIST Incident Response framework?",
+            "What are insider threats?",
+        ]
+
+        col_q, col_btn = st.columns([4, 1])
+        with col_q:
             question = st.text_input(
                 "Ask a cybersecurity question",
                 placeholder="What is ransomware and how does it spread?",
+                label_visibility="collapsed",
             )
-            if question:
-                with st.spinner("Thinking …"):
-                    answer = generate_threat_explanation(
-                        prediction_prob=0.0,
-                        features={
-                            "attack_type": "N/A",
-                            "industry": "N/A",
-                            "country": "N/A",
-                            "financial_loss": 0,
-                            "affected_users": 0,
-                            "vulnerability_score": 0,
-                            "response_time": 0,
-                        },
-                        user_query=question,
-                        collection=collection,
-                    )
-                st.markdown(answer)
+        with col_btn:
+            n_results = st.selectbox(
+                "Passages", [3, 4, 5, 6], index=1, label_visibility="collapsed"
+            )
+
+        st.caption("Quick questions:")
+        cols = st.columns(4)
+        for idx, q in enumerate(QUICK_QUESTIONS):
+            if cols[idx % 4].button(q, key=f"qq_{idx}", use_container_width=True):
+                question = q
+
+        if question:
+            with st.spinner("Searching knowledge base …"):
+                answer = answer_question(
+                    question=question,
+                    collection=collection,
+                    n_results=int(n_results),
+                )
+            st.markdown(answer)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

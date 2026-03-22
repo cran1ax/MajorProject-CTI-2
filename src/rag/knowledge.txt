@@ -1,5 +1,80 @@
-Phishing attacks are fraudulent attempts to steal sensitive data using deceptive URLs.
-Malicious URLs often contain abnormal domain lengths, special characters, or IP-based domains.
-Machine learning models classify cyber threats using lexical, host-based, and behavioral features.
-High-risk cybersecurity incidents are identified using ensemble classifiers and neural networks.
-Retrieval-Augmented Generation improves answer accuracy by combining document retrieval with LLMs.
+== PHISHING ==
+Phishing attacks are fraudulent attempts to acquire sensitive information such as usernames, passwords, and credit card numbers by disguising as a trustworthy entity in electronic communication. Phishing emails often use urgency, fear, or curiosity to manipulate victims. Advanced phishing (spear-phishing) targets specific individuals using personalised information gathered via OSINT. MITRE ATT&CK technique T1566 covers phishing as an initial access vector. Indicators include mismatched display names, suspicious attachments, lookalike domains, and urgency in subject lines. Defences: email filtering, DMARC/DKIM/SPF records, user awareness training, and multi-factor authentication.
+
+== RANSOMWARE ==
+Ransomware is malicious software that encrypts the victim's files and demands payment for the decryption key. Modern ransomware families (e.g., LockBit, BlackCat/ALPHV, Cl0p, REvil) use double extortion: they both encrypt data and threaten to publish it. Ransomware typically enters networks via phishing emails, exposed RDP, or exploitation of known CVEs (e.g., ProxyShell CVE-2021-34473, Log4Shell CVE-2021-44228). MITRE ATT&CK T1486 covers data encryption for impact. Recovery requires offline backups tested regularly. Indicators of compromise: shadow copy deletion (vssadmin), rapid file renaming, and outbound connections to Tor exit nodes.
+
+== DDOS (DISTRIBUTED DENIAL OF SERVICE) ==
+A DDoS attack floods a target server or network with traffic from multiple distributed sources to exhaust resources and make it unavailable. Types include volumetric attacks (UDP floods, ICMP floods), protocol attacks (SYN floods, Smurf attacks), and application-layer attacks (HTTP floods, Slowloris). Botnets such as Mirai (IoT-based) are commonly leveraged. MITRE ATT&CK T1498 covers network denial of service. Mitigation: rate limiting, anycast diffusion, CDN-based scrubbing centres, TCP SYN cookies, and upstream ISP black-holing.
+
+== MALWARE ==
+Malware is any software intentionally designed to cause disruption, damage, or gain unauthorised access. Categories include viruses, worms, trojans, rootkits, spyware, adware, and fileless malware. Fileless malware (e.g., using PowerShell or WMI) runs entirely in memory to evade signature-based detection. MITRE ATT&CK T1059 covers command and scripting interpreter abuse. Common dropper families include Emotet (email-based distributor), TrickBot (banking trojan / loader), and Qakbot. Defences: endpoint detection and response (EDR), application whitelisting, script-block logging, and behavioural analytics.
+
+== INSIDER THREAT ==
+Insider threats originate from current or former employees, contractors, or business partners who misuse authorised access. They may be malicious (data theft, sabotage) or unintentional (misconfiguration, accidental data exposure). MITRE ATT&CK TTP T1078 (valid accounts) is commonly abused by insiders. Warning signs include excessive data downloads, access at unusual hours, and attempts to access out-of-scope resources. Defences: zero-trust architecture, data loss prevention (DLP) tools, user behaviour analytics (UBA), and principle of least privilege.
+
+== SQL INJECTION ==
+SQL injection (SQLi) occurs when untrusted data is sent to a database interpreter as part of a query, enabling attackers to manipulate queries. Variants include classic SQLi, blind SQLi, and time-based blind SQLi. CVE-2023-20198 (Cisco IOS XE) and historic attacks on Sony, LinkedIn, and Yahoo leveraged SQLi. MITRE ATT&CK T1190 covers exploit of public-facing applications. Defences: parameterised queries/prepared statements, stored procedures, strict input validation, WAF rules, and least-privilege DB accounts.
+
+== CROSS-SITE SCRIPTING (XSS) ==
+XSS allows attackers to inject malicious client-side scripts into webpages viewed by other users. Types: reflected (non-persistent), stored (persistent), and DOM-based. Stored XSS is particularly dangerous as it affects all users viewing the compromised page. MITRE ATT&CK T1059.007 covers JavaScript-based attacks. Defences: content security policy (CSP), output encoding, HTTPOnly and Secure cookie flags, and input sanitisation.
+
+== MAN-IN-THE-MIDDLE (MITM) ATTACKS ==
+MITM attacks intercept communications between two parties to eavesdrop or alter data. Common techniques include ARP poisoning, SSL stripping, DNS spoofing, and rogue Wi-Fi access points. MITM is frequently used in credential harvesting campaigns especially on public Wi-Fi. MITRE ATT&CK T1557 covers adversary-in-the-middle. Defences: mutual TLS (mTLS), HSTS, certificate pinning, VPN usage, and network monitoring for ARP anomalies.
+
+== ZERO-DAY VULNERABILITIES ==
+A zero-day vulnerability is a software flaw unknown to the vendor with no official patch. They are highly valuable in both criminal and state-sponsored attack markets. Notable zero-days include Heartbleed (CVE-2014-0160), EternalBlue (CVE-2017-0144 — used by WannaCry), and Log4Shell (CVE-2021-44228). MITRE ATT&CK T1203 covers exploitation of client execution via vulnerabilities. Defences: virtual patching via WAF, network segmentation, anomaly detection, and timely patch management (within 24h for CVSS ≥ 9.0).
+
+== CVE SEVERITY SCORING ==
+The Common Vulnerability Scoring System (CVSS v3.1) rates vulnerabilities on a 0-10 scale: Critical (9.0-10.0), High (7.0-8.9), Medium (4.0-6.9), Low (0.1-3.9). Factors include attack vector (Network/Adjacent/Local/Physical), attack complexity, privileges required, user interaction, scope, confidentiality/integrity/availability impact. Organisations should prioritise Critical and High CVEs within 24-72h. The National Vulnerability Database (NVD) at nvd.nist.gov lists all CVEs with CVSS scores.
+
+== MITRE ATT&CK FRAMEWORK ==
+MITRE ATT&CK is a globally accessible knowledge base of adversary tactics and techniques based on real-world observations. It covers 14 tactics: Reconnaissance, Resource Development, Initial Access, Execution, Persistence, Privilege Escalation, Defence Evasion, Credential Access, Discovery, Lateral Movement, Collection, Command and Control, Exfiltration, and Impact. It is used for red team exercises, detection engineering, and gap analysis. The ATT&CK Navigator tool helps teams visualise coverage across detection capabilities.
+
+== NIST INCIDENT RESPONSE FRAMEWORK ==
+The NIST SP 800-61 (Computer Security Incident Handling Guide) defines four phases of incident response: (1) Preparation — establish policies, build IR team, deploy monitoring tools; (2) Detection & Analysis — identify and confirm incidents, assess scope and severity; (3) Containment, Eradication & Recovery — isolate affected systems, remove malware, restore from backups; (4) Post-Incident Activity — conduct lessons-learned review, update detection rules, and report. Mean Time to Detect (MTTD) and Mean Time to Respond (MTTR) are key performance metrics.
+
+== ADVANCED PERSISTENT THREATS (APT) ==
+APTs are prolonged, targeted cyberattacks typically sponsored by nation-states or sophisticated criminal organisations. They aim for long-term unauthorised access rather than immediate damage. Well-known APT groups: APT28/Fancy Bear (Russia, T1566 spear-phishing), APT41 (China, supply chain attacks), Lazarus Group (North Korea, financial theft). APT lifecycle: spear-phish → initial foothold → lateral movement → persistence (T1547) → data exfiltration (T1041). Defences: threat intelligence feeds, deception technologies (honeypots), privileged access workstations, and network segmentation.
+
+== DATA EXFILTRATION ==
+Data exfiltration is the unauthorised transfer of data from an organisation. MITRE ATT&CK T1048 covers exfiltration over alternative protocols (HTTPS, DNS tunnelling, steganography). Common indicators: large outbound transfers at unusual hours, DNS queries for newly-registered domains, and access to classification-marked files by non-authorised users. CloudFlare Gateway, Zeek/Snort for DNS anomaly detection, and DLP tools are effective countermeasures. Regulations such as GDPR mandate breach notification within 72 hours.
+
+== VULNERABILITY ASSESSMENT VS PENETRATION TESTING ==
+Vulnerability assessment is the systematic identification and classification of vulnerabilities using automated tools (Nessus, OpenVAS, Qualys). Penetration testing is a simulated cyberattack to evaluate the actual exploitability of vulnerabilities. Pentest phases: pre-engagement → reconnaissance → scanning → exploitation → post-exploitation → reporting. Bug-bounty programmes (HackerOne, Bugcrowd) are complementary approaches. CVSS scores guide prioritisation; EPSS (Exploit Prediction Scoring System) predicts near-term exploitation likelihood.
+
+== NETWORK SECURITY MONITORING ==
+Network security monitoring (NSM) involves collecting and analysing network traffic for threat detection. Tools: Zeek (formerly Bro) for connection logging, Suricata/Snort for signature-based IDS, Elastic SIEM for correlation. Key data sources: NetFlow/IPFIX, PCAP, Syslog, endpoint telemetry. Detection techniques: signature matching, statistical baseline deviation, and ML-based anomaly detection. SIEMs (Splunk, Microsoft Sentinel, IBM QRadar) aggregate logs and enable correlation rules.
+
+== CLOUD SECURITY ==
+Cloud environments introduce shared-responsibility model risks. Common misconfigurations: publicly exposed S3 buckets, overly permissive IAM policies, unencrypted data at rest, and lack of MFA on root accounts. AWS Security Hub, Microsoft Defender for Cloud, and GCP Security Command Center provide posture management. CSPM (Cloud Security Posture Management) and CWPP (Cloud Workload Protection Platform) tools continuously audit configurations. Container security requires image scanning (Trivy, Snyk), least-privilege service accounts, and network policies.
+
+== FINANCIAL SECTOR CYBERSECURITY ==
+Financial institutions face threats including credential stuffing, wire fraud, ATM jackpotting, and SWIFT network attacks (e.g., Bangladesh Bank heist, $81M stolen). PCI-DSS compliance requires network segmentation, encryption of cardholder data, and quarterly vulnerability scans. Regulatory frameworks: FFIEC, Basel III operational risk provisions, and ECB TIBER-EU red-team testing. Common CVEs targeting financial sector: web-application SQLi, RDP exploitation, and supply-chain compromises of financial software vendors.
+
+== HEALTHCARE CYBERSECURITY ==
+Healthcare organisations are high-value ransomware targets due to critical nature of operations and often legacy infrastructure. Notable incidents: WannaCry (2017, UK NHS), Universal Health Services (2020, Ryuk ransomware, $67M). HIPAA requires encryption of PHI and breach notification within 60 days (HHS OCR). Medical devices (IoT) are increasingly targeted; FDA recommends post-market vulnerability disclosure frameworks. Defences: network segmentation of clinical devices, patch management for medical systems, and air-gapping critical life-safety equipment.
+
+== GOVERNMENT / CRITICAL INFRASTRUCTURE ==
+Critical infrastructure sectors (energy, water, transportation) use OT/SCADA systems which are often unpatched and air-gap-breaking techniques are common (USBs, supply chain). ICS-CERT advisories catalogue SCADA vulnerabilities. Notable incidents: Colonial Pipeline (2021, DarkSide ransomware, $4.4M ransom paid), Ukraine power grid attacks (2015/2016, BlackEnergy). IEC 62443 is the standard for industrial cybersecurity. Defences: unidirectional security gateways, OT-specific IDS (Claroty, Dragos, Nozomi), and regular red-team exercises for critical infrastructure.
+
+== ENCRYPTION AND CRYPTOGRAPHY ==
+Encryption protects data in transit (TLS 1.3) and at rest (AES-256). Common weaknesses: use of deprecated algorithms (MD5, SHA-1, RC4, DES), insecure key storage, and hard-coded secrets. Certificate mismanagement causes MITM risks. Best practices: rotate API keys every 90 days, use hardware security modules (HSM) for key storage, implement perfect forward secrecy (ECDHE), and disable cipher suites below TLS 1.2. Post-quantum cryptography (NIST finalised CRYSTALS-Kyber/CRYSTALS-Dilithium in 2024) is emerging as a critical future defence.
+
+== THREAT INTELLIGENCE FEEDS ==
+Threat intelligence involves collecting, processing, and analysing data about threat actors, campaigns, and indicators of compromise (IoCs). Sources: STIX/TAXII feeds, ISACs (FS-ISAC, H-ISAC), commercial feeds (Recorded Future, CrowdStrike Falcon Intelligence), open-source (AlienVault OTX, Abuse.ch). IoC types: IP addresses, domain names, file hashes (MD5/SHA-256), URLs, and YARA rules. Threat intelligence platforms (TIPs): MISP, OpenCTI, ThreatConnect integrate feeds with SIEM/SOAR workflows for automated enrichment and response.
+
+== RESPONSE TIME AND RISK ==
+Longer incident response times correlate strongly with greater financial damage. PONEMON/IBM Cost of a Data Breach (2023): average breach cost $4.45M; organisations with IR teams save an average of $1.49M. MTTD under 200 days and MTTR under 70 days are benchmarks. Automated SOAR playbooks (Splunk SOAR, Palo Alto XSOAR) can reduce response time by up to 60%. High vulnerability scores (CVSS ≥ 7.0) combined with long response times (> 12h) significantly elevate the probability of data exfiltration and regulatory fines.
+
+== MACHINE LEARNING IN CYBERSECURITY ==
+ML models are used for anomaly detection, malware classification, phishing URL detection, and user behaviour analytics (UBA). Feature engineering for cyber ML commonly uses network flow features (src/dst IP, port, bytes, duration), log features (login times, file access patterns), and NLP features (email content, URL lexical features). Ensemble methods (Random Forest, XGBoost, Gradient Boosting) excel at tabular threat data. Deep learning (LSTM, BERT fine-tuned on security logs) handles sequential and text-based detection. Class imbalance (rare attacks) is addressed via SMOTE, cost-sensitive learning, and threshold tuning.
+
+== AFFECTED USERS AND BREACH SCOPE ==
+The number of affected users is a primary factor in breach severity, regulatory penalty, and reputational damage. GDPR fines scale up to 4% of global annual turnover. In the USA, state data breach notification laws (e.g., California CCPA) require disclosure based on thresholds as low as 500 residents. Larger affected user counts correlate with higher media coverage (reputational loss), higher class-action litigation risk, and longer incident recovery windows. Healthcare breaches affecting > 500 individuals must be reported to HHS and media.
+
+== SOCIAL ENGINEERING ==
+Social engineering exploits human psychology rather than technical vulnerabilities. Techniques: pretexting (fabricating scenarios), baiting (physical media), vishing (voice phishing), smishing (SMS phishing), and quid pro quo. MITRE ATT&CK T1534 (internal spear-phishing) and T1598 (phishing for information) cover social engineering vectors. Defences: robust security awareness programmes, simulated phishing campaigns (KnowBe4, Proofpoint Security Awareness), and clear escalation procedures for suspicious requests.
+
+== ENDPOINT SECURITY ==
+Endpoint security protects devices (laptops, mobile, servers) from compromise. Modern EDR solutions (CrowdStrike Falcon, Microsoft Defender for Endpoint, SentinelOne) provide real-time threat detection, behavioural analysis, and automated response. Key capabilities: process tree analysis, AMSI (Anti-Malware Scan Interface) integration, memory scanning for fileless threats, and threat hunting via telemetry. Patch management is critical: unpatched endpoints account for over 60% of successful breaches (Ponemon 2023). Mobile Device Management (MDM) enforces encryption and remote wipe capabilities.
